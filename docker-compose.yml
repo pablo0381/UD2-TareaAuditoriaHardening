@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db-postgres:
+    image: postgres:latest
+    container_name: postgresSQL_local
+    restart: always
+    environment:
+      POSTGRES_USER: postgres_admin
+      POSTGRES_DB: finanzas_db
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+    secrets:
+      - postgres_admin_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      # Bind Mount para el firewall lógico de PostgreSQL (pg_hba.conf)
+      - ./config/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - postgres_logs:/var/log/postgresql
+    command: ["postgres", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres_admin -d finanzas_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - fintech_shared_net
+
+  mariadb-server:
+    image: mariadb:lts
+    container_name: mariadb_core_container
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_root_password
+      MARIADB_DATABASE: fintech_db
+    secrets:
+      - mariadb_root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      # Bind Mount para la configuración personalizada de MariaDB
+      - ./config/99-custom.cnf:/etc/mysql/conf.d/99-custom.cnf:ro
+    networks:
+      - fintech_shared_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_logs:
+    driver: local
+  mariadb_data:
+    driver: local
+
+networks:
+  fintech_shared_net:
+    driver: bridge
+
+secrets:
+  postgres_admin_password:
+    file: ./seguridad/postgres_admin_password.txt
+  mariadb_root_password:
+    file: ./seguridad/mariadb_root_password.txt

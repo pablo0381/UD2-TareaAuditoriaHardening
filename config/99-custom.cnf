@@ -1,0 +1,4 @@
+[mariadb]
+
+# Persistencia a comparacion de INSTALL SONAME 'auth_ed25519'; en dbeaver
+plugin_load_add = auth_ed25519
